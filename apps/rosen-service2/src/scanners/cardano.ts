@@ -1,6 +1,10 @@
 import { DefaultLogger } from '@rosen-bridge/abstract-logger';
 import { FailoverStrategy, NetworkConnectorManager } from '@rosen-bridge/abstract-scanner';
 import {
+  BLOCK_CLEANUP_THRESHOLD_DURATION,
+  BLOCK_TRIM_COUNT_IN_ROUND,
+} from '@rosen-bridge/abstract-scanner/dist/constants.js';
+import {
   CardanoBlockFrostObservationExtractor,
   CardanoKoiosObservationExtractor,
   CardanoOgmiosObservationExtractor,
@@ -167,6 +171,10 @@ const buildCardanoOgmiosScannerWithExtractors = async (
       nodePort: configs.chains.cardano.ogmios.connection.port || 0,
       initialSlot: configs.chains.cardano.ogmios.connection.initialSlot || 0,
       initialHash: configs.chains.cardano.ogmios.connection.initialHash || '',
+      blockCleanupConfig: {
+        blockCleanupThresholdDuration: BLOCK_CLEANUP_THRESHOLD_DURATION,
+        blockTrimCountInRound: BLOCK_TRIM_COUNT_IN_ROUND,
+      },
     },
     logger.child('cardanoOgmiosScannerLogger'),
   );

@@ -11,12 +11,7 @@ import { handleError, runAndSetInterval } from '../utils';
  * @param updateInterval
  */
 export const startScanner = async (
-  /**
-   * TODO: remove the inline Biome comment
-   * local:ergo/rosen-bridge/ui#441
-   */
-  // biome-ignore lint/suspicious/noExplicitAny: Use a better type
-  scanner: GeneralScanner<any>,
+  scanner: Pick<GeneralScanner<unknown>, 'update' | 'name'>,
   loggerFileName: string,
   updateInterval: number,
 ) => {
