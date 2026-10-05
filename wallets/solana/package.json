@@ -1,0 +1,52 @@
+{
+  "name": "@rosen-ui/solana-wallet",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Solana wallet connection and signing for Rosen Bridge UI",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rosen-bridge/ui.git",
+    "directory": "./wallets/solana"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "browser": {
+    "ergo-lib-wasm-nodejs": "@rosen-network/solana/dist/ergo-address-browser.mjs",
+    "@solana/spl-token": "@rosen-network/solana/dist/spl-token-browser.mjs"
+  },
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "lint": "biome check --write",
+    "lint:check": "biome check",
+    "test": "cross-env NODE_OPTIONS=--import=tsx vitest run",
+    "test:browser": "npm run build && cross-env NODE_OPTIONS=--import=tsx vitest run --config vitest.browser.config.ts",
+    "test:browser:chrome": "npm run build && node ./scripts/replay-browser.mjs",
+    "test:integration": "cross-env NODE_OPTIONS=--import=tsx vitest run --config vitest.integration.config.ts",
+    "type-check": "tsc --noEmit -p tsconfig.tests.json"
+  },
+  "dependencies": {
+    "@rosen-network/solana": "0.0.0",
+    "@solana/web3.js": "1.98.4",
+    "bs58": "6.0.0",
+    "buffer": "6.0.3"
+  },
+  "devDependencies": {
+    "@rosen-bridge/address-codec": "^2.1.0",
+    "@solana/spl-token": "0.4.14",
+    "cross-env": "^10.1.0",
+    "ergo-lib-wasm-browser": "0.24.1",
+    "ergo-lib-wasm-nodejs": "0.24.1",
+    "esbuild": "0.25.10",
+    "tsx": "^4.19.2",
+    "vitest": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=22.18.0",
+    "npm": "11.6.2"
+  }
+}
