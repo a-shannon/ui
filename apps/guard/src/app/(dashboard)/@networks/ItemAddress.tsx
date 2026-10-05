@@ -9,7 +9,12 @@ import type { TokenInfoWithAddress } from '@/types/api';
 export type ItemAddressProps = {
   loading?: boolean;
   state: 'hot' | 'cold';
-  value?: TokenInfoWithAddress;
+  value?: Omit<TokenInfoWithAddress, 'balance'> & {
+    balance: Omit<TokenInfoWithAddress['balance'], 'amount'> & {
+      amount: number | bigint;
+    };
+    addressUrl?: string;
+  };
 };
 
 export const ItemAddress = ({ loading, state, value }: ItemAddressProps) => {
@@ -37,7 +42,7 @@ export const ItemAddress = ({ loading, state, value }: ItemAddressProps) => {
         </Typography>
       </Stack>
       <Identifier
-        href={getAddressUrl(value?.chain as NetworkType, value?.address)}
+        href={value?.addressUrl ?? getAddressUrl(value?.chain as NetworkType, value?.address)}
         loading={loading}
         value={value?.address}
         fallback="N/A"

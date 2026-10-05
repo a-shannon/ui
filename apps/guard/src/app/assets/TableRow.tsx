@@ -8,7 +8,17 @@ import { getAddressUrl, getTokenUrl } from '@rosen-ui/utils';
 import { useAddresses } from '@/hooks';
 import type { GuardTokenInfo } from '@/types/api';
 
-interface RowProps extends GuardTokenInfo {
+export type GuardAssetView = Omit<GuardTokenInfo, 'amount' | 'coldAmount'> & {
+  amount: number | bigint;
+  coldAmount?: number | bigint;
+  hotAddress?: string;
+  balanceAddress?: string;
+  balanceLabel?: 'Hot' | 'Cold';
+  balanceAddressUrl?: string;
+  tokenUrl?: string;
+};
+
+interface RowProps extends GuardAssetView {
   isLoading?: boolean;
 }
 
@@ -60,6 +70,11 @@ export const tabletHeader = [
   },
 ];
 
+export const custodyTabletHeader = (label: 'Hot' | 'Cold') =>
+  tabletHeader
+    .slice(0, 4)
+    .map((header, index) => (index === 3 ? { ...header, title: `Amount (${label})` } : header));
+
 export const MobileRow: FC<RowProps> = (props) => {
   const { isLoading, ...row } = props;
   const [expand, setExpand] = useState(false);
@@ -75,7 +90,11 @@ export const MobileRow: FC<RowProps> = (props) => {
       <TableRow className="divider" style={rowStyles}>
         <EnhancedTableCell>Id</EnhancedTableCell>
         <EnhancedTableCell>
-          <Identifier value={row.isNativeToken ? '' : row.tokenId} fallback="-" />
+          <Identifier
+            href={row.isNativeToken ? undefined : row.tokenUrl}
+            value={row.isNativeToken ? '' : row.tokenId}
+            fallback="-"
+          />
         </EnhancedTableCell>
       </TableRow>
       <TableRow style={rowStyles}>
@@ -89,17 +108,26 @@ export const MobileRow: FC<RowProps> = (props) => {
       {expand && (
         <>
           <TableRow style={rowStyles}>
-            <EnhancedTableCell>Amount (Hot)</EnhancedTableCell>
+            <EnhancedTableCell>Amount ({row.balanceLabel ?? 'Hot'})</EnhancedTableCell>
             <EnhancedTableCell>
-              <Amount value={row.amount} decimal={row.decimals} />
+              <Amount
+                value={row.amount}
+                decimal={row.decimals}
+                href={
+                  row.balanceAddressUrl ??
+                  (row.balanceAddress ? getAddressUrl(row.chain, row.balanceAddress) : undefined)
+                }
+              />
             </EnhancedTableCell>
           </TableRow>
-          <TableRow style={rowStyles}>
-            <EnhancedTableCell>Amount (Cold)</EnhancedTableCell>
-            <EnhancedTableCell>
-              <Amount value={row.coldAmount} decimal={row.decimals} />
-            </EnhancedTableCell>
-          </TableRow>
+          {!row.balanceLabel && (
+            <TableRow style={rowStyles}>
+              <EnhancedTableCell>Amount (Cold)</EnhancedTableCell>
+              <EnhancedTableCell>
+                <Amount value={row.coldAmount} decimal={row.decimals} />
+              </EnhancedTableCell>
+            </TableRow>
+          )}
         </>
       )}
       <TableRow style={rowStyles}>
@@ -124,16 +152,20 @@ export const TabletRow: FC<RowProps> = (props) => {
 
   const addresses = useAddresses();
 
-  const tokenUrl = getTokenUrl(
-    row.chain,
-    row.chain === NETWORKS.cardano.key ? row.tokenId.replace('.', '') : row.tokenId,
-  );
+  const tokenUrl =
+    row.tokenUrl ??
+    getTokenUrl(
+      row.chain,
+      row.chain === NETWORKS.cardano.key ? row.tokenId.replace('.', '') : row.tokenId,
+    );
 
   const rowStyles = useMemo(() => (isLoading ? { opacity: 0.3 } : {}), [isLoading]);
 
   const coldUrl = getAddressUrl(row.chain, addresses.cold[row?.chain]);
 
-  const hotUrl = getAddressUrl(row.chain, addresses.hot[row?.chain]);
+  const hotUrl =
+    row.balanceAddressUrl ??
+    getAddressUrl(row.chain, row.balanceAddress ?? row.hotAddress ?? addresses.hot[row?.chain]);
 
   return (
     <TableRow className="divider" style={rowStyles}>
@@ -155,14 +187,16 @@ export const TabletRow: FC<RowProps> = (props) => {
           style={{ alignItems: 'center' }}
         />
       </EnhancedTableCell>
-      <EnhancedTableCell>
-        <Amount
-          href={coldUrl}
-          value={row.coldAmount}
-          decimal={row.decimals}
-          style={{ alignItems: 'center' }}
-        />
-      </EnhancedTableCell>
+      {!row.balanceLabel && (
+        <EnhancedTableCell>
+          <Amount
+            href={coldUrl}
+            value={row.coldAmount}
+            decimal={row.decimals}
+            style={{ alignItems: 'center' }}
+          />
+        </EnhancedTableCell>
+      )}
     </TableRow>
   );
 };
