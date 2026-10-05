@@ -1,3 +1,4 @@
+export * from './avalancheExplorerUrl';
 export * from './batch';
 export * from './bigint';
 export * from './decimals';
