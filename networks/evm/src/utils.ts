@@ -26,17 +26,25 @@ export const generateLockData = async (
   if (toChainCode === -1) throw Error(`invalid toChain [${toChain}]`);
   const toChainHex = toChainCode.toString(16).padStart(2, '0');
 
-  // parse bridgeFee
-  const bridgeFeeHex = BigInt(bridgeFee).toString(16).padStart(16, '0');
-
-  // parse networkFee
-  const networkFeeHex = BigInt(networkFee).toString(16).padStart(16, '0');
+  const bridgeFeeHex = encodeFee(bridgeFee);
+  const networkFeeHex = encodeFee(networkFee);
 
   // parse toAddress
   const addressHex = encodeAddress(toChain, toAddress);
+  if (!/^(?:[0-9a-fA-F]{2}){1,255}$/.test(addressHex)) {
+    throw new RangeError('invalid encoded lock address');
+  }
   const addressLengthCode = (addressHex.length / 2).toString(16).padStart(2, '0');
 
-  return toChainHex + bridgeFeeHex + networkFeeHex + addressLengthCode + addressHex;
+  return toChainHex + bridgeFeeHex + networkFeeHex + addressLengthCode + addressHex.toLowerCase();
+};
+
+/** Encodes a non-negative fee into the lock protocol's unsigned 64-bit field. */
+const encodeFee = (fee: string): string => {
+  if (!/^\d+$/.test(fee)) throw new RangeError('invalid lock fee');
+  const value = BigInt(fee);
+  if (value > 0xffffffffffffffffn) throw new RangeError('lock fee exceeds uint64');
+  return value.toString(16).padStart(16, '0');
 };
 
 /**
