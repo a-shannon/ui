@@ -13,6 +13,7 @@ import { NETWORKS } from '@rosen-ui/constants';
 import type { Network } from '@rosen-ui/types';
 
 import type AbstractCalculator from './calculator/abstract-calculator';
+import { AvalancheCalculator } from './calculator/chains/avalanche-calculator';
 import { BitcoinCalculator } from './calculator/chains/bitcoin-calculator';
 import { BitcoinRunesCalculator } from './calculator/chains/bitcoin-runes';
 import { CardanoCalculator } from './calculator/chains/cardano-calculator';
@@ -26,6 +27,7 @@ import type { LockedAssetEntity } from './database/lockedAsset/LockedAssetEntity
 import { LockedAssetModel } from './database/lockedAsset/LockedAssetModel';
 import { TokenModel } from './database/token/TokenModel';
 import type {
+  AvalancheCalculatorInterface,
   BitcoinCalculatorInterface,
   BitcoinRunesCalculatorInterface,
   CardanoCalculatorInterface,
@@ -58,6 +60,7 @@ class AssetCalculator {
     handshakeCalculator: HandshakeCalculatorInterface,
     dataSource: DataSource,
     protected readonly logger: AbstractLogger = new DummyLogger(),
+    avalancheCalculator?: AvalancheCalculatorInterface,
   ) {
     this.tokens = tokens;
     const ergoAssetCalculator = new ErgoCalculator(
@@ -129,6 +132,16 @@ class AssetCalculator {
     this.calculatorMap.set(NETWORKS.doge.key, dogeAssetCalculator);
     this.calculatorMap.set(NETWORKS.firo.key, firoAssetCalculator);
     this.calculatorMap.set(NETWORKS.handshake.key, handshakeAssetCalculator);
+    if (avalancheCalculator) {
+      this.calculatorMap.set(
+        'avalanche',
+        new AvalancheCalculator(
+          this.tokens,
+          avalancheCalculator,
+          logger.child('avalancheCalculator'),
+        ),
+      );
+    }
     this.bridgedAssetModel = new BridgedAssetModel(dataSource, logger.child('bridgedAssetModel'));
     this.lockedAssetModel = new LockedAssetModel(dataSource, logger.child('lockedAssetModel'));
     this.tokenModel = new TokenModel(dataSource, logger.child('tokenModel'));

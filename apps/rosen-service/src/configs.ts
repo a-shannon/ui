@@ -2,6 +2,7 @@ import nodeConfig from 'config';
 
 import type { TransportOptions } from '@rosen-bridge/winston-logger';
 
+import { parseAvalancheConfig } from './avalanche/config';
 import AppError from './errors/AppError';
 
 /**
@@ -13,13 +14,36 @@ const getOptionalString = (path: string): string | undefined => {
   return nodeConfig.has(path) ? nodeConfig.get<string>(path) : undefined;
 };
 
+/** Read an optional numeric setting without querying an absent configuration key. */
 const getOptionalNumber = (path: string): number | undefined => {
   return nodeConfig.has(path) ? nodeConfig.get<number>(path) : undefined;
 };
 
-const getConfig = () => {
+/** Load service settings and freeze the explicit Avalanche deployment policy. */
+export const getConfig = () => {
   try {
+    const avalancheInput = nodeConfig.has('avalanche')
+      ? nodeConfig.get<unknown>('avalanche')
+      : undefined;
+    const avalancheEnabled =
+      typeof avalancheInput === 'object' &&
+      avalancheInput !== null &&
+      !Array.isArray(avalancheInput) &&
+      'enabled' in avalancheInput &&
+      avalancheInput.enabled === true;
+    const avalanche = parseAvalancheConfig(
+      avalancheInput,
+      avalancheEnabled
+        ? {
+            avalancheScannerWarnDiff: getOptionalNumber('healthCheck.avalancheScannerWarnDiff'),
+            avalancheScannerCriticalDiff: getOptionalNumber(
+              'healthCheck.avalancheScannerCriticalDiff',
+            ),
+          }
+        : undefined,
+    );
     return {
+      avalanche,
       logs: nodeConfig.get<TransportOptions[]>('logs'),
       ergo: {
         addresses: {
@@ -184,6 +208,8 @@ const getConfig = () => {
         interval: nodeConfig.get<number>('calculator.interval'),
       },
       healthCheck: {
+        avalancheScannerWarnDiff: avalanche?.health.warnDiff,
+        avalancheScannerCriticalDiff: avalanche?.health.criticalDiff,
         ergoScannerWarnDiff: nodeConfig.get<number>('healthCheck.ergoScannerWarnDiff'),
         ergoScannerCriticalDiff: nodeConfig.get<number>('healthCheck.ergoScannerCriticalDiff'),
         cardanoScannerWarnDiff: nodeConfig.get<number>('healthCheck.cardanoScannerWarnDiff'),

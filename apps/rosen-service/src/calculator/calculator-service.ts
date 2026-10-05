@@ -1,9 +1,11 @@
 import { DefaultLogger } from '@rosen-bridge/abstract-logger';
 import { AssetCalculator } from '@rosen-ui/asset-calculator';
 
+import { createAvalancheCalculatorConfig } from '../avalanche/calculator';
 import config from '../configs';
 import dataSource from '../data-source';
 import AppError from '../errors/AppError';
+import scannerService from '../scanner/scanner-service';
 import { getTokenMap, handleError, runAndSetInterval } from '../utils';
 
 /**
@@ -85,6 +87,14 @@ const start = async () => {
     },
     dataSource,
     logger,
+    config.avalanche
+      ? createAvalancheCalculatorConfig(
+          config.avalanche,
+          dataSource,
+          scannerService.getAvalancheScanner(),
+          logger.child('avalancheCalculator'),
+        )
+      : undefined,
   );
 
   await startUpdateJob(assetCalculator, config.calculator.interval * 1000);

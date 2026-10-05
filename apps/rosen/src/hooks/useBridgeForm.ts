@@ -103,7 +103,7 @@ export const useBridgeForm = () => {
             // prevent user from entering more than token amount
 
             const selectedNetwork = Object.values(networks).find(
-              (wallet) => wallet.name === sourceField.value,
+              (wallet) => wallet?.name === sourceField.value,
             );
 
             if (!selectedNetwork) return 'Could not find the selected source network';
@@ -111,6 +111,7 @@ export const useBridgeForm = () => {
             const maxTransfer = await selectedNetwork.getMaxTransfer({
               balance: await walletGlobalContext.selected.getBalance(tokenField.value),
               isNative: tokenField.value.type === 'native',
+              token: tokenField.value,
               eventData: {
                 fromAddress: await walletGlobalContext.selected.getAddress(),
                 toAddress: addressField.value,
@@ -123,7 +124,7 @@ export const useBridgeForm = () => {
           }
 
           const network = Object.values(networks).find(
-            (network) => network.name === sourceField.value,
+            (network) => network?.name === sourceField.value,
           )!;
 
           const minTransfer = await network.getMinTransfer(
@@ -153,7 +154,7 @@ export const useBridgeForm = () => {
           }
 
           const network = Object.values(networks).find(
-            (wallet) => wallet.name === targetField.value,
+            (wallet) => wallet?.name === targetField.value,
           );
 
           if (!network) return;

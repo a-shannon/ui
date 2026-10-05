@@ -1,7 +1,8 @@
 import { NETWORKS } from '@rosen-ui/constants';
-import { getAddressUrl, getDecimalString, getTokenUrl } from '@rosen-ui/utils';
+import { getDecimalString, getTokenUrl } from '@rosen-ui/utils';
 
 import type { Assets } from '@/types/api';
+import { getAddressUrl } from '@/utils/explorer';
 
 import { LOCK_ADDRESSES } from '../../../../configs';
 

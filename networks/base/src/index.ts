@@ -1,3 +1,4 @@
+import type { RosenChainToken } from '@rosen-bridge/tokens';
 import type { Network as NetworkName, RosenAmountValue } from '@rosen-ui/types';
 
 import type { CalculateFee } from './calculateFeeCreator';
@@ -6,6 +7,8 @@ import type { getMinTransferCreator } from './getMinTransferCreator';
 export interface NetworkMaxTransferParams {
   balance: RosenAmountValue;
   isNative: boolean;
+  /** Selected asset identity for networks that qualify mapped token balances. */
+  token?: RosenChainToken;
   eventData: {
     toChain: NetworkName;
     fromAddress: string;

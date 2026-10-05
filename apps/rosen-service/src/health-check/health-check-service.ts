@@ -7,6 +7,7 @@ import { HealthCheck, HealthStatusLevel } from '@rosen-bridge/health-check';
 import { LogLevelHealthCheck } from '@rosen-bridge/log-level-check';
 import { ScannerSyncHealthCheckParam } from '@rosen-bridge/scanner-sync-check';
 
+import { createAvalancheScannerHealth } from '../avalanche/health';
 import config from '../configs';
 import {
   BINANCE_BLOCK_TIME,
@@ -26,6 +27,7 @@ import {
   HANDSHAKE_BLOCK_TIME,
   HANDSHAKE_SCANNER_INTERVAL,
 } from '../constants';
+import dataSource from '../data-source';
 import scannerService from '../scanner/scanner-service';
 import { getLastSavedBlock } from './health-check-utils';
 
@@ -150,6 +152,16 @@ const registerAllHealthChecks = (healthCheck: HealthCheck) => {
       label: 'handshake',
     },
   ];
+
+  if (config.avalanche)
+    checks.push({
+      instance: createAvalancheScannerHealth(
+        config.avalanche,
+        dataSource,
+        scannerService.getAvalancheScanner(),
+      ),
+      label: 'avalanche',
+    });
 
   for (const { instance, label } of checks) {
     healthCheck.register(instance);

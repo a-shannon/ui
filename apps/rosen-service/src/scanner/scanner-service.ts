@@ -2,11 +2,12 @@ import { DefaultLogger } from '@rosen-bridge/abstract-logger';
 import type { BitcoinRpcScanner, DogeRpcScanner } from '@rosen-bridge/bitcoin-scanner';
 import type { CardanoKoiosScanner } from '@rosen-bridge/cardano-scanner';
 import type { ErgoScanner } from '@rosen-bridge/ergo-scanner';
-import type { EvmRpcScanner } from '@rosen-bridge/evm-scanner';
+import type { AvalancheRpcScanner, EvmRpcScanner } from '@rosen-bridge/evm-scanner';
 import type { FiroElectrumXScanner } from '@rosen-bridge/firo-scanner';
 import type { HandshakeRpcScanner } from '@rosen-bridge/handshake-scanner';
 
 import { handleError } from '../utils';
+import { startAvalancheScanner } from './chains/avalanche';
 import { startBinanceScanner } from './chains/binance';
 import { startBitcoinScanner } from './chains/bitcoin';
 import { startCardanoScanner } from './chains/cardano';
@@ -27,6 +28,7 @@ let binanceScanner: EvmRpcScanner;
 let dogeScanner: DogeRpcScanner;
 let firoScanner: FiroElectrumXScanner;
 let handshakeScanner: HandshakeRpcScanner;
+let avalancheScanner: AvalancheRpcScanner | undefined;
 
 /**
  * start all scanners and register their extractors
@@ -42,6 +44,7 @@ const start = async () => {
       dogeScanner,
       firoScanner,
       handshakeScanner,
+      avalancheScanner,
     ] = await Promise.all([
       startErgoScanner(),
       startCardanoScanner(),
@@ -51,6 +54,7 @@ const start = async () => {
       startDogeScanner(),
       startFiroScanner(),
       startHandshakeScanner(),
+      startAvalancheScanner(),
     ]);
 
     logger.debug('all scanners started and their extractors registered', {
@@ -63,6 +67,7 @@ const start = async () => {
         dogeScanner.name(),
         firoScanner.name(),
         handshakeScanner.name(),
+        ...(avalancheScanner ? [avalancheScanner.name()] : []),
       ],
     });
   } catch (error) {
@@ -81,6 +86,7 @@ const scannerService = {
   getDogeScanner: () => dogeScanner,
   getFiroScanner: () => firoScanner,
   getHandshakeScanner: () => handshakeScanner,
+  getAvalancheScanner: () => avalancheScanner,
 };
 
 export default scannerService;

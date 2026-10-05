@@ -66,6 +66,7 @@ export const useMaxTransfer = (): MaxTransferState => {
         const amount = await network.selectedSource.getMaxTransfer({
           balance: balance.amount,
           isNative: transactionFormData.tokenValue.type === 'native',
+          token: transactionFormData.tokenValue,
           eventData: {
             fromAddress: await wallet.selected.getAddress(),
             toAddress: transactionFormData.walletAddressValue,

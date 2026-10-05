@@ -1,6 +1,8 @@
 import { NETWORKS } from '@rosen-ui/constants';
 import type { Network } from '@rosen-ui/types';
 
+import { avalancheExplorerUrl } from './avalancheExplorerUrl';
+
 /**
  * TODO: This util is temporary and its logic should be moved to individual
  * network packages
@@ -10,7 +12,8 @@ import type { Network } from '@rosen-ui/types';
 
 type HttpsURL = `https://${string}`;
 
-const baseTxURLs: { [key in Network]: HttpsURL } = {
+const baseTxURLs: { [key in Network]: HttpsURL | undefined } = {
+  [NETWORKS.avalanche.key]: undefined,
   [NETWORKS.binance.key]: 'https://bscscan.com/tx',
   [NETWORKS.ergo.key]: 'https://explorer.ergoplatform.com/transactions',
   [NETWORKS.cardano.key]: 'https://cardanoscan.io/transaction',
@@ -22,12 +25,20 @@ const baseTxURLs: { [key in Network]: HttpsURL } = {
   [NETWORKS.handshake.key]: 'https://e.hnsfans.com/tx',
 };
 
-export const getTxURL = (network?: Network, tx?: string): HttpsURL | undefined => {
+/** Build a transaction link; C-Chain requires an explicitly selected deployment. */
+export const getTxURL = (
+  network?: Network,
+  tx?: string,
+  chainId?: number,
+): HttpsURL | undefined => {
   if (!network || !tx) return;
 
-  const baseURL = baseTxURLs[network as keyof typeof baseTxURLs];
+  const baseURL =
+    network === NETWORKS.avalanche.key
+      ? avalancheExplorerUrl(chainId)
+      : baseTxURLs[network as keyof typeof baseTxURLs];
 
   if (!baseURL) return;
 
-  return `${baseURL}/${tx}`;
+  return network === NETWORKS.avalanche.key ? `${baseURL}/tx/${tx}` : `${baseURL}/${tx}`;
 };

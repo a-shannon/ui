@@ -3,6 +3,7 @@ import type { ErgoScanner } from '@rosen-bridge/ergo-scanner';
 import { ErgoNetworkType } from '@rosen-bridge/scanner-interfaces';
 import { EventTriggerExtractor } from '@rosen-bridge/watcher-data-extractor';
 
+import { createAvalancheEventTriggerExtractor } from '../avalanche/event-trigger';
 import configs from '../configs';
 import dataSource from '../data-source';
 import AppError from '../errors/AppError';
@@ -132,6 +133,16 @@ export const registerExtractors = async (scanner: ErgoScanner) => {
     await scanner.registerExtractor(binanceEventTriggerExtractor);
     await scanner.registerExtractor(firoEventTriggerExtractor);
     await scanner.registerExtractor(handshakeEventTriggerExtractor);
+    const avalancheEventTriggerExtractor = configs.avalanche
+      ? createAvalancheEventTriggerExtractor(
+          configs.avalanche,
+          dataSource,
+          configs.ergo.explorerUrl,
+          logger.child('avalancheEventTriggerExtractor'),
+        )
+      : undefined;
+    if (avalancheEventTriggerExtractor)
+      await scanner.registerExtractor(avalancheEventTriggerExtractor);
 
     logger.debug('event trigger extractors registered', {
       scannerName: scanner.name(),
@@ -145,6 +156,7 @@ export const registerExtractors = async (scanner: ErgoScanner) => {
         binanceEventTriggerExtractor.getId(),
         firoEventTriggerExtractor.getId(),
         handshakeEventTriggerExtractor.getId(),
+        ...(avalancheEventTriggerExtractor ? [avalancheEventTriggerExtractor.getId()] : []),
       ],
     });
   } catch (error) {

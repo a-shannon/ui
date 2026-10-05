@@ -1,7 +1,7 @@
 import { type FeeData, isAddress, JsonRpcProvider } from 'ethers';
 
 import { encodeAddress } from '@rosen-bridge/address-codec';
-import { NETWORKS } from '@rosen-ui/constants';
+import { NETWORKS, RESERVED_ROSEN_CHAIN_INDEXES } from '@rosen-ui/constants';
 import type { Network } from '@rosen-ui/types';
 
 import { EvmChains } from './types';
@@ -13,6 +13,7 @@ import { EvmChains } from './types';
  * @param fromAddress
  * @param networkFee
  * @param bridgeFee
+ * @param configuredChainIndex Rosen-assigned byte for an unregistered destination
  * @returns
  */
 export const generateLockData = async (
@@ -20,10 +21,25 @@ export const generateLockData = async (
   toAddress: string,
   networkFee: string,
   bridgeFee: string,
+  configuredChainIndex?: number,
 ): Promise<string> => {
-  // parse toChain
-  const toChainCode = (NETWORKS[toChain]?.index ?? -1) as number;
-  if (toChainCode === -1) throw Error(`invalid toChain [${toChain}]`);
+  const publishedIndex = NETWORKS[toChain]?.index;
+  const toChainCode = publishedIndex ?? configuredChainIndex;
+  if (
+    !NETWORKS[toChain] ||
+    toChainCode === undefined ||
+    !Number.isInteger(toChainCode) ||
+    toChainCode < 0 ||
+    toChainCode > 255 ||
+    (publishedIndex !== undefined &&
+      configuredChainIndex !== undefined &&
+      configuredChainIndex !== publishedIndex) ||
+    (publishedIndex === undefined &&
+      (Object.values(NETWORKS).some((network) => network.index === toChainCode) ||
+        RESERVED_ROSEN_CHAIN_INDEXES.some((index) => index === toChainCode)))
+  ) {
+    throw new RangeError(`invalid Rosen destination index for [${toChain}]`);
+  }
   const toChainHex = toChainCode.toString(16).padStart(2, '0');
 
   const bridgeFeeHex = encodeFee(bridgeFee);

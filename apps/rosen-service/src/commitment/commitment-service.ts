@@ -20,6 +20,10 @@ export const registerExtractors = async (scanner: ErgoScanner) => {
     for (const key of NETWORKS_KEYS) {
       const chain = key === NETWORKS['bitcoin-runes'].key ? BITCOIN_RUNES_CONFIG_KEY : key;
       const chainConfig = configs[chain];
+      if (!chainConfig) {
+        if (chain === 'avalanche') continue;
+        throw new Error(`Missing commitment configuration for ${chain}`);
+      }
 
       const commitmentExtractor = new CommitmentExtractor(
         `${chain}-commitment-extractor`,

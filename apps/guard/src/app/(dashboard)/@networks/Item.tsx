@@ -9,7 +9,7 @@ import { NETWORKS } from '@rosen-ui/constants';
 import { fetcher } from '@rosen-ui/swr-helpers';
 import type { Network as NetworkType } from '@rosen-ui/types';
 
-import type { ApiBalanceResponse } from '@/types/api';
+import { type GuardBalanceView, guardBalanceReaders } from '@/networks';
 
 import { ItemAddress } from './ItemAddress';
 
@@ -18,17 +18,30 @@ export type ItemProps = {
 };
 
 export const Item = ({ network }: ItemProps) => {
+  const reader = network ? guardBalanceReaders[network] : undefined;
+
   const key = useMemo(() => {
     if (!network) return;
+    if (reader) return reader.key;
     return [
       '/balance',
       {
         tokenId: NETWORKS[network].nativeToken,
       },
     ];
-  }, [network]);
+  }, [network, reader]);
 
-  const { data, error, isLoading } = useSWR<ApiBalanceResponse>(key, fetcher);
+  const { data: response, error, isLoading } = useSWR<unknown>(key, fetcher);
+
+  const data = useMemo(() => {
+    if (!response) return;
+    if (!reader) return response as GuardBalanceView;
+    try {
+      return reader.decode(response);
+    } catch {
+      return;
+    }
+  }, [reader, response]);
 
   const cold = useMemo(() => {
     return data?.cold.items?.find((item) => item.chain === network);

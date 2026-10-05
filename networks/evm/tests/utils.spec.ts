@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { Network } from '@rosen-ui/types';
+
 import { generateLockData } from '../src/utils';
 
 const codecControl = vi.hoisted(() => ({ encoded: undefined as string | undefined }));
@@ -21,6 +23,18 @@ describe('generateLockData', () => {
   });
 
   /**
+   * @target generateLockData should encode native Avalanche metadata with an explicit synthetic index
+   * @dependencies real address codec and shared network metadata
+   * @scenario encode an Avalanche address with network fee 1, bridge fee 2 and fixture index 10
+   * @expected exact destination, uint64 fees, address length and canonical address bytes
+   */
+  it('should encode native Avalanche metadata with an explicit synthetic index', async () => {
+    expect(await generateLockData('avalanche', address, '1', '2', 10)).toEqual(
+      `0a0000000000000002000000000000000114${'ab'.repeat(20)}`,
+    );
+  });
+
+  /**
    * @target generateLockData should preserve registered Ethereum encoding
    * @dependencies real address codec and shared network metadata
    * @scenario encode the same fixture on the registered Ethereum destination
@@ -29,6 +43,68 @@ describe('generateLockData', () => {
   it('should preserve registered Ethereum encoding', async () => {
     expect(await generateLockData('ethereum', address, '1', '2')).toEqual(
       `030000000000000002000000000000000114${'ab'.repeat(20)}`,
+    );
+  });
+
+  /**
+   * @target generateLockData should reject an unassigned Avalanche destination
+   * @dependencies shared network metadata
+   * @scenario omit the configured index while keeping all other fields valid
+   * @expected RangeError before address encoding
+   */
+  it('should reject an unassigned Avalanche destination', async () => {
+    await expect(generateLockData('avalanche', address, '1', '2')).rejects.toThrow(RangeError);
+  });
+
+  /**
+   * @target generateLockData should reject collision with an existing Rosen destination
+   * @dependencies shared network metadata including the reserved Base byte
+   * @scenario supply each assigned index for an otherwise valid Avalanche fixture
+   * @expected RangeError for every conflicting identity
+   */
+  it.each([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])(
+    'should reject collision with Rosen destination %s',
+    async (index) => {
+      await expect(generateLockData('avalanche', address, '1', '2', index)).rejects.toThrow(
+        RangeError,
+      );
+    },
+  );
+
+  /**
+   * @target generateLockData should reject invalid destination bytes
+   * @dependencies shared network metadata
+   * @scenario change only the fixture index to a negative, overflowing or noninteger value
+   * @expected RangeError at destination validation
+   */
+  it.each([-1, 256, 10.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'should reject invalid destination byte %s',
+    async (index) => {
+      await expect(generateLockData('avalanche', address, '1', '2', index)).rejects.toThrow(
+        RangeError,
+      );
+    },
+  );
+
+  /**
+   * @target generateLockData should reject overriding a registered chain identity
+   * @dependencies shared network metadata
+   * @scenario provide fixture index 10 for registered Ethereum
+   * @expected RangeError instead of relabelling the Ethereum destination
+   */
+  it('should reject overriding a registered chain identity', async () => {
+    await expect(generateLockData('ethereum', address, '1', '2', 10)).rejects.toThrow(RangeError);
+  });
+
+  /**
+   * @target generateLockData should reject unknown network keys even with an index
+   * @dependencies shared network metadata
+   * @scenario replace only the network key with an unregistered value
+   * @expected RangeError before invoking the address codec
+   */
+  it('should reject unknown network keys even with an index', async () => {
+    await expect(generateLockData('unknown' as Network, address, '1', '2', 10)).rejects.toThrow(
+      RangeError,
     );
   });
 

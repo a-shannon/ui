@@ -1,7 +1,10 @@
 import { NETWORKS } from '@rosen-ui/constants';
 import type { Network } from '@rosen-ui/types';
 
+import { avalancheExplorerUrl } from './avalancheExplorerUrl';
+
 const baseAddressURLs: { [key in Network]: string } = {
+  [NETWORKS.avalanche.key]: '',
   [NETWORKS.binance.key]: 'https://bscscan.com/address',
   [NETWORKS.ergo.key]: 'https://explorer.ergoplatform.com/en/addresses',
   [NETWORKS.cardano.key]: 'https://cardanoscan.io/address',
@@ -13,12 +16,22 @@ const baseAddressURLs: { [key in Network]: string } = {
   [NETWORKS.handshake.key]: 'https://e.hnsfans.com/address',
 };
 
-export const getAddressUrl = (network?: Network, address?: string): string | undefined => {
+/** Build an address link; C-Chain requires an explicitly selected deployment. */
+export const getAddressUrl = (
+  network?: Network,
+  address?: string,
+  chainId?: number,
+): string | undefined => {
   if (!network || !address) return;
 
-  const baseURL = baseAddressURLs[network as keyof typeof baseAddressURLs];
+  const baseURL =
+    network === NETWORKS.avalanche.key
+      ? avalancheExplorerUrl(chainId)
+      : baseAddressURLs[network as keyof typeof baseAddressURLs];
 
   if (!baseURL) return;
 
-  return `${baseURL}/${address}`;
+  return network === NETWORKS.avalanche.key
+    ? `${baseURL}/address/${address}`
+    : `${baseURL}/${address}`;
 };

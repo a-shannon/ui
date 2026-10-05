@@ -26,9 +26,9 @@ import {
 } from '@rosen-bridge/ui-kit';
 import { NETWORKS } from '@rosen-ui/constants';
 import { fetcher } from '@rosen-ui/swr-helpers';
-import { getAddressUrl, getTxURL } from '@rosen-ui/utils';
 
 import type { ApiEventResponse, EventItem } from '@/types';
+import { getAddressUrl, getTxURL } from '@/utils/explorer';
 
 import { eventStatusParser } from '../eventStatusParser';
 

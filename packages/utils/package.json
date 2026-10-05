@@ -15,6 +15,7 @@
     "build": "tsc --build",
     "lint": "biome check --write",
     "lint:check": "biome check",
+    "test": "NODE_OPTIONS='--import tsx' vitest run",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

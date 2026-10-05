@@ -3,6 +3,14 @@ export const TOKEN_NAME_PLACEHOLDER = 'unnamed token';
 export const HEALTH_DATA_REFRESH_INTERVAL = 60000;
 
 export const NETWORKS = {
+  'avalanche': {
+    index: undefined,
+    key: 'avalanche',
+    label: 'Avalanche C-Chain',
+    nativeToken: 'avax',
+    id: '',
+    hasTokenSupport: true,
+  },
   'binance': {
     index: 4,
     key: 'binance',
@@ -78,3 +86,6 @@ export const NETWORKS = {
 } as const;
 
 export const NETWORKS_KEYS = Object.values(NETWORKS).map((network) => network.key);
+
+// Base already owns this Rosen byte, although it is not offered by this UI.
+export const RESERVED_ROSEN_CHAIN_INDEXES = [9] as const;

@@ -16,9 +16,9 @@ import {
 } from '@rosen-bridge/ui-kit';
 import { NETWORKS } from '@rosen-ui/constants';
 import { fetcher } from '@rosen-ui/swr-helpers';
-import { getTxURL } from '@rosen-ui/utils';
 
 import type { EventDetailsType } from '@/backend/events/repository';
+import { getTxURL } from '@/utils/explorer';
 
 import { Section } from './Section';
 

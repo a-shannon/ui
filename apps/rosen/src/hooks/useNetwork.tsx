@@ -76,7 +76,9 @@ export const NetworkProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const getNetwork = useCallback((name: NetworkKey) => {
-    return Object.values<Network>(networks).find((wallet) => wallet.name === name);
+    return Object.values<Network | undefined>(networks).find(
+      (network): network is Network => network?.name === name,
+    );
   }, []);
 
   /**

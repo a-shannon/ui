@@ -49,6 +49,7 @@ export { default as LockAlt } from './lock-alt.svg';
 export { default as MoneyWithdrawal } from './money-withdrawal.svg';
 export { default as Moneybag } from './moneybag.svg';
 export { default as Moon } from './moon.svg';
+export { default as Avalanche } from './networks/avalanche.svg';
 export { default as Binance } from './networks/binance.svg';
 export { default as Bitcoin } from './networks/bitcoin.svg';
 export { default as BitcoinRunes } from './networks/bitcoin-runes.svg';

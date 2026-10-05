@@ -24,9 +24,9 @@ import {
 } from '@rosen-bridge/ui-kit';
 import { fetcher } from '@rosen-ui/swr-helpers';
 import type { Network as NetworkType } from '@rosen-ui/types';
-import { getAddressUrl } from '@rosen-ui/utils';
 
 import type { EventDetailsType } from '@/backend/events/repository';
+import { getAddressUrl } from '@/utils/explorer';
 
 import { eventStatusParser } from '../eventStatusParser';
 import { Section } from './Section';
