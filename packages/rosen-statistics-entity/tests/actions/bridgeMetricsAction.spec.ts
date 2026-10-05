@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { type AbstractLogger, DummyLogger } from '@rosen-bridge/abstract-logger';
 import { BlockEntity } from '@rosen-bridge/abstract-scanner';
-import type { DataSource, Repository } from '@rosen-bridge/extended-typeorm';
+import { DataSource, type Repository } from '@rosen-bridge/extended-typeorm';
 import { EventTriggerEntity } from '@rosen-bridge/watcher-data-extractor';
-import { TokenEntity } from '@rosen-ui/asset-calculator';
+import {
+  LockedAssetEntity as AggregatorLockedAssetEntity,
+  TokenEntity as AggregatorTokenEntity,
+} from '@rosen-ui/asset-aggregator';
+import { LockedAssetEntity, TokenEntity } from '@rosen-ui/asset-calculator';
 
 import {
   BridgedAmountEntity,
@@ -155,11 +159,47 @@ describe('BridgeMetricsAction', () => {
       await eventTriggerRepo.insert(testData.eventTriggerRepo);
 
       const timestamp = await action.getFirstEventTimestamp();
-      expect(timestamp).toBe(testData.expectedTimestamp);
+      expect(timestamp).toEqual(testData.expectedTimestamp);
     });
   });
 
   describe('getEventsInRange', () => {
+    /**
+     * Builds the migrated range fixture with Service2's genuine token/locked-asset pair.
+     * Preserves their declared relation and the fixture's remaining entities and migrations.
+     * @param entityPrefix - Optional table prefix; uses synchronized entity metadata when present.
+     * @returns An initialized local SQLite DataSource owned by the calling test.
+     */
+    const createAggregatorDatabase = async (entityPrefix = ''): Promise<DataSource> => {
+      if (!Array.isArray(dataSource.options.entities)) {
+        throw new Error('Range fixture requires an explicit entity array');
+      }
+      const source = new DataSource({
+        ...dataSource.options,
+        ...(entityPrefix ? { entityPrefix, synchronize: true, migrations: [] } : {}),
+        entities: dataSource.options.entities.map((entity) => {
+          if (entity === TokenEntity) return AggregatorTokenEntity;
+          if (entity === LockedAssetEntity) return AggregatorLockedAssetEntity;
+          return entity;
+        }),
+      });
+      await source.initialize();
+      await source.runMigrations();
+      return source;
+    };
+
+    /**
+     * Inserts the established nonempty range fixture using its registered token table.
+     * @param source - Local migrated DataSource with either genuine TokenEntity family.
+     * @returns A promise resolving after block, event and token rows are inserted.
+     */
+    const insertRangeFixture = async (source: DataSource): Promise<void> => {
+      const fixture = bridgeMetricsActionTestData.getEventsInRangeMultipleEvents;
+      await source.getRepository(BlockEntity).insert(fixture.blockRepo);
+      await source.getRepository(EventTriggerEntity).insert(fixture.eventTriggerRepo);
+      await source.getRepository<TokenEntity>('TokenEntity').insert(fixture.tokenRepo);
+    };
+
     /**
      * @target getEventsInRange should fetch bridge amount and bridge fee with block timestamps and token decimals
      * @dependencies
@@ -229,6 +269,156 @@ describe('BridgeMetricsAction', () => {
 
       expect(events).toHaveLength(0);
     });
+
+    /**
+     * @target BridgeMetricsAction.getEventsInRange should join the registered calculator token table
+     * @dependencies Genuine calculator TokenEntity, migrated SQLite and the existing range fixture.
+     * @scenario Insert successful events, three dated blocks and tokens with 8 and 6 significant decimals.
+     * @expected The calculator constructor remains registered and both in-range events retain their decimals.
+     */
+    it('should join the registered calculator token table', async () => {
+      const fixture = bridgeMetricsActionTestData.getEventsInRangeMultipleEvents;
+      await insertRangeFixture(dataSource);
+
+      expect(dataSource.getMetadata('token_entity').target).toBe(TokenEntity);
+      expect(dataSource.hasMetadata(AggregatorTokenEntity)).toEqual(false);
+      expect(await action.getEventsInRange(fixture.startTs, fixture.endTs)).toEqual(
+        fixture.expectedEvents,
+      );
+    });
+
+    /**
+     * @target BridgeMetricsAction.getEventsInRange should join the registered aggregator token table
+     * @dependencies Genuine aggregator TokenEntity, original migrations and the existing range fixture.
+     * @scenario Register Service2's token/locked-asset pair, retaining its relation and the range fixture.
+     * @expected Two populated events retain their amounts, blocks and decimals without registering the calculator class.
+     */
+    it('should join the registered aggregator token table', async () => {
+      const source = await createAggregatorDatabase();
+      try {
+        const fixture = bridgeMetricsActionTestData.getEventsInRangeMultipleEvents;
+        await insertRangeFixture(source);
+
+        expect(source.getMetadata('token_entity').target).toBe(AggregatorTokenEntity);
+        expect(source.hasMetadata(TokenEntity)).toEqual(false);
+        expect(
+          await new BridgeMetricsAction(source).getEventsInRange(fixture.startTs, fixture.endTs),
+        ).toEqual(fixture.expectedEvents);
+      } finally {
+        await source.destroy();
+      }
+    });
+
+    /**
+     * @target BridgeMetricsAction.getEventsInRange should omit an event without its joined token
+     * @dependencies Genuine aggregator token registry and populated local SQLite range fixture.
+     * @scenario Delete only token-1 after inserting both successful in-range events and their blocks.
+     * @expected The token-1 event is absent while the unchanged token-2 event and its decimal remain.
+     */
+    it('should omit an event without its joined token', async () => {
+      const source = await createAggregatorDatabase();
+      try {
+        const fixture = bridgeMetricsActionTestData.getEventsInRangeMultipleEvents;
+        await insertRangeFixture(source);
+        await source.getRepository(AggregatorTokenEntity).delete('token-1');
+
+        expect(
+          await new BridgeMetricsAction(source).getEventsInRange(fixture.startTs, fixture.endTs),
+        ).toEqual(fixture.expectedEvents.slice(1));
+      } finally {
+        await source.destroy();
+      }
+    });
+
+    /**
+     * @target BridgeMetricsAction.getEventsInRange should omit an event with a mismatched source token identifier
+     * @dependencies Genuine aggregator token registry, actual event repository and migrated SQLite.
+     * @scenario Change only event1's sourceChainTokenId to an identifier absent from the token table.
+     * @expected The changed event cannot join; the second event remains with its original amount and decimal.
+     */
+    it('should omit an event with a mismatched source token identifier', async () => {
+      const source = await createAggregatorDatabase();
+      try {
+        const fixture = bridgeMetricsActionTestData.getEventsInRangeMultipleEvents;
+        await insertRangeFixture(source);
+        await source
+          .getRepository(EventTriggerEntity)
+          .update({ eventId: 'event1' }, { sourceChainTokenId: 'missing-token' });
+
+        expect(
+          await new BridgeMetricsAction(source).getEventsInRange(fixture.startTs, fixture.endTs),
+        ).toEqual(fixture.expectedEvents.slice(1));
+      } finally {
+        await source.destroy();
+      }
+    });
+
+    /**
+     * @target BridgeMetricsAction.getEventsInRange should keep the end timestamp exclusive for aggregator tokens
+     * @dependencies Genuine aggregator token registry and nonempty local SQLite event, block and token rows.
+     * @scenario Set endTs exactly to the second successful event's block timestamp.
+     * @expected The event at endTs is excluded and the first successful in-range event remains.
+     */
+    it('should keep the end timestamp exclusive for aggregator tokens', async () => {
+      const source = await createAggregatorDatabase();
+      try {
+        const fixture = bridgeMetricsActionTestData.getEventsInRangeMultipleEvents;
+        await insertRangeFixture(source);
+
+        expect(
+          await new BridgeMetricsAction(source).getEventsInRange(
+            fixture.startTs,
+            fixture.expectedEvents[1].timestamp,
+          ),
+        ).toEqual(fixture.expectedEvents.slice(0, 1));
+      } finally {
+        await source.destroy();
+      }
+    });
+
+    /**
+     * @target BridgeMetricsAction.getEventsInRange should omit an unsuccessful aggregator event
+     * @dependencies Genuine aggregator token registry, event repository and populated local SQLite fixture.
+     * @scenario Change only event1's result from successful to fraud while preserving its block and token.
+     * @expected The unsuccessful event is excluded while the second successful event remains unchanged.
+     */
+    it('should omit an unsuccessful aggregator event', async () => {
+      const source = await createAggregatorDatabase();
+      try {
+        const fixture = bridgeMetricsActionTestData.getEventsInRangeMultipleEvents;
+        await insertRangeFixture(source);
+        await source
+          .getRepository(EventTriggerEntity)
+          .update({ eventId: 'event1' }, { result: 'fraud' });
+
+        expect(
+          await new BridgeMetricsAction(source).getEventsInRange(fixture.startTs, fixture.endTs),
+        ).toEqual(fixture.expectedEvents.slice(1));
+      } finally {
+        await source.destroy();
+      }
+    });
+
+    /**
+     * @target BridgeMetricsAction.getEventsInRange should preserve a configured token table prefix
+     * @dependencies Genuine aggregator entity pair and synchronized prefixed SQLite metadata.
+     * @scenario Populate the established successful range fixture with entityPrefix set to fixture_.
+     * @expected The registered prefixed token table joins both events with their original decimals.
+     */
+    it('should preserve a configured token table prefix', async () => {
+      const source = await createAggregatorDatabase('fixture_');
+      try {
+        const fixture = bridgeMetricsActionTestData.getEventsInRangeMultipleEvents;
+        await insertRangeFixture(source);
+
+        expect(source.getMetadata('TokenEntity').tableName).toEqual('fixture_token_entity');
+        expect(
+          await new BridgeMetricsAction(source).getEventsInRange(fixture.startTs, fixture.endTs),
+        ).toEqual(fixture.expectedEvents);
+      } finally {
+        await source.destroy();
+      }
+    });
   });
 
   describe('saveBridgeFees', () => {
@@ -259,12 +449,12 @@ describe('BridgeMetricsAction', () => {
       const metric = await metricRepo.findOne({
         where: { key: METRIC_KEYS.TOTAL_BRIDGE_FEES_USD },
       });
-      expect(metric?.value).toBe(testData.expectedMetricValue);
+      expect(metric?.value).toEqual(testData.expectedMetricValue);
       expect(metric?.updatedAt).toBeDefined();
     });
 
     /**
-     * @target saveBridgeFees should replace existing total bridge fee records with new values
+     * @target saveBridgeFees should replace existing bridge fee records with new values
      * @dependencies
      * - database
      * @scenario
@@ -293,7 +483,7 @@ describe('BridgeMetricsAction', () => {
       const metric = await metricRepo.findOne({
         where: { key: METRIC_KEYS.TOTAL_BRIDGE_FEES_USD },
       });
-      expect(metric?.value).toBe(testData.expectedMetricValue);
+      expect(metric?.value).toEqual(testData.expectedMetricValue);
     });
 
     /**
@@ -347,12 +537,12 @@ describe('BridgeMetricsAction', () => {
       const metric = await metricRepo.findOne({
         where: { key: METRIC_KEYS.TOTAL_BRIDGE_AMOUNT_USD },
       });
-      expect(metric?.value).toBe(testData.expectedMetricValue);
+      expect(metric?.value).toEqual(testData.expectedMetricValue);
       expect(metric?.updatedAt).toBeDefined();
     });
 
     /**
-     * @target saveBridgeAmount should replace existing total bridge amount records with new values
+     * @target saveBridgeAmount should replace existing bridge amount records with new values
      * @dependencies
      * - database
      * @scenario
@@ -381,7 +571,7 @@ describe('BridgeMetricsAction', () => {
       const metric = await metricRepo.findOne({
         where: { key: METRIC_KEYS.TOTAL_BRIDGE_AMOUNT_USD },
       });
-      expect(metric?.value).toBe(testData.expectedMetricValue);
+      expect(metric?.value).toEqual(testData.expectedMetricValue);
     });
 
     /**

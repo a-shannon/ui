@@ -1,12 +1,17 @@
 import { type AbstractLogger, DummyLogger } from '@rosen-bridge/abstract-logger';
 import type { DataSource } from '@rosen-bridge/extended-typeorm';
-import { LockedAssetEntity } from '@rosen-ui/asset-calculator';
+import type { LockedAssetEntity } from '@rosen-ui/asset-calculator';
 
 import type { LockedAssetsType } from '../types';
 
 export class LockedAssetsMetricAction {
   private readonly logger: AbstractLogger;
 
+  /**
+   * Creates locked-asset metrics using the DataSource's registered entity family.
+   * @param dataSource - DataSource containing the locked-asset and token entities.
+   * @param logger - Optional metric logger; defaults to DummyLogger.
+   */
   constructor(
     private readonly dataSource: DataSource,
     logger?: AbstractLogger,
@@ -21,9 +26,11 @@ export class LockedAssetsMetricAction {
    * @returns A promise that resolves to an array of LockedAssetsType
    */
   getLockedAssets = async (): Promise<LockedAssetsType[]> => {
-    const lockedAssets = await this.dataSource.getRepository(LockedAssetEntity).find({
-      relations: { token: true },
-    });
+    const lockedAssets = await this.dataSource
+      .getRepository<LockedAssetEntity>('LockedAssetEntity')
+      .find({
+        relations: { token: true },
+      });
     this.logger.debug(`Found ${lockedAssets.length} locked assets`);
     return lockedAssets.map((asset) => ({
       tokenId: asset.tokenId,

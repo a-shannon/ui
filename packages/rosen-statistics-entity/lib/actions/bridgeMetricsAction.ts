@@ -2,7 +2,6 @@ import { type AbstractLogger, DummyLogger } from '@rosen-bridge/abstract-logger'
 import { BlockEntity } from '@rosen-bridge/abstract-scanner';
 import type { DataSource, Repository } from '@rosen-bridge/extended-typeorm';
 import { EventTriggerEntity } from '@rosen-bridge/watcher-data-extractor';
-import { TokenEntity } from '@rosen-ui/asset-calculator';
 
 import { METRIC_KEYS } from '../constants';
 import { BridgedAmountEntity, BridgeFeeEntity, MetricEntity } from '../entities';
@@ -103,7 +102,7 @@ export class BridgeMetricsAction {
     const events = await this.eventTriggerRepo
       .createQueryBuilder('et')
       .innerJoin(BlockEntity, 'be', `be.hash = et.spendBlock and be.scanner = 'ergo'`)
-      .innerJoin(TokenEntity, 'te', `te.id = et.sourceChainTokenId`)
+      .innerJoin('TokenEntity', 'te', `te.id = et.sourceChainTokenId`)
       .select([
         'et.fromChain as "fromChain"',
         'et.amount as "bridgeAmount"',
